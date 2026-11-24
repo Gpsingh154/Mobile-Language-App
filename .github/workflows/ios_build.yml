@@ -8,7 +8,7 @@ on:
 jobs:
   build-ios:
     name: Build Flutter iOS IPA
-    runs-on: macos-14 # Apple Silicon M2 runner
+    runs-on: macos-latest
 
     steps:
       - name: Checkout Code Repository
