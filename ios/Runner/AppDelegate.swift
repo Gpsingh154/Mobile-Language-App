@@ -4,25 +4,20 @@ import AVFoundation
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, AVSpeechSynthesizerDelegate {
+  public static weak var shared: AppDelegate?
+
   private let permissionsChannelName = "com.bolixr.languageapp/permissions"
   private let audioChannelName = "com.bolixr.languageapp/audio"
 
-  private var speechSynthesizer = AVSpeechSynthesizer()
+  private lazy var speechSynthesizer = AVSpeechSynthesizer()
   private var isConfigured = false
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
-
-    if let registrar = self.registrar(forPlugin: "BoliXRNative") {
-      setupChannels(messenger: registrar.messenger())
-    } else if let controller = window?.rootViewController as? FlutterViewController {
-      setupChannels(messenger: controller.binaryMessenger)
-    }
-
-    return result
+    AppDelegate.shared = self
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
@@ -33,12 +28,11 @@ import AVFoundation
     }
   }
 
-  private func setupChannels(messenger: FlutterBinaryMessenger) {
+  public func setupChannels(messenger: FlutterBinaryMessenger) {
     guard !isConfigured else { return }
     isConfigured = true
 
     speechSynthesizer.delegate = self
-    configureAudioSession()
 
     // 1. Permissions Platform Channel
     let permissionsChannel = FlutterMethodChannel(name: permissionsChannelName, binaryMessenger: messenger)

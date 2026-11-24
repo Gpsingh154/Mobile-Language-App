@@ -119,22 +119,38 @@ class NativeAudioService {
     return false;
   }
 
-  /// Spawns Windows System.Speech.Synthesis PowerShell process for desktop laptop speaker audio.
+  /// Spawns Windows SAPI.SpVoice PowerShell process for desktop laptop speaker audio.
   static void _playWindowsSpeech(String text) {
     try {
-      final sanitized = text
-          .replaceAll('`', '')
+      var speakable = text
+          .replaceAll('`', ' ')
           .replaceAll('"', ' ')
           .replaceAll("'", ' ')
           .replaceAll('\n', ' ')
           .trim();
-      if (sanitized.isEmpty) return;
+      if (speakable.isEmpty) return;
+
+      // When text contains non-ASCII characters (e.g. Gurmukhi Punjabi), standard Windows English SAPI voices
+      // cannot pronounce non-Latin glyphs. Extract Latin substrings or use an audible voice cue.
+      final hasNonAscii = speakable.runes.any((r) => r > 127);
+      if (hasNonAscii) {
+        final latinWords = RegExp(r'[a-zA-Z0-9\s,\.!\?]+')
+            .allMatches(speakable)
+            .map((m) => m.group(0)!.trim())
+            .where((s) => s.length > 2)
+            .join(' ');
+        if (latinWords.isNotEmpty) {
+          speakable = latinWords;
+        } else {
+          speakable = 'BoliXR language companion update.';
+        }
+      }
 
       Process.start('powershell', [
         '-NoProfile',
         '-NonInteractive',
         '-Command',
-        'Add-Type -AssemblyName System.Speech; \$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; \$synth.Speak("$sanitized");',
+        '(New-Object -ComObject SAPI.SpVoice).Speak(\'$speakable\')',
       ], mode: ProcessStartMode.detached);
     } catch (_) {}
   }
