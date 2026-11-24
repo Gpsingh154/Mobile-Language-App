@@ -11,7 +11,10 @@ import 'package:mobile_language_app/services/model_lifecycle_manager.dart';
 import 'package:mobile_language_app/services/on_demand_vision_router.dart';
 import 'package:mobile_language_app/state/app_state_controller.dart';
 import 'package:mobile_language_app/ui/camera/camera_overlay_screen.dart';
+import 'package:mobile_language_app/ui/camera/model_info_dialog.dart';
 import 'package:mobile_language_app/ui/camera/vocab_found_sheet.dart';
+import 'package:mobile_language_app/services/native_audio_service.dart';
+import 'package:mobile_language_app/services/permission_service.dart';
 
 void main() {
   group('AppStateController & Functional State Toggles Tests', () {
@@ -859,6 +862,219 @@ void main() {
       expect(find.text('Vocab found'), findsNothing);
 
       controller.dispose();
+    });
+  });
+
+  group('Production Release & iPhone 13 Pro Enhancements Tests', () {
+    test('PermissionService: Check and request platform permissions', () async {
+      final cameraStatus = await PermissionService.checkPermission(PermissionType.camera);
+      final micStatus = await PermissionService.checkPermission(PermissionType.microphone);
+
+      // On desktop/test environments, defaults to granted safely
+      expect(cameraStatus, PermissionStatus.granted);
+      expect(micStatus, PermissionStatus.granted);
+
+      final cameraRequested = await PermissionService.requestPermission(PermissionType.camera);
+      final micRequested = await PermissionService.requestPermission(PermissionType.microphone);
+
+      expect(cameraRequested, isTrue);
+      expect(micRequested, isTrue);
+    });
+
+    test('NativeAudioService: Locale mappings and speech synthesis across all languages', () async {
+      expect(NativeAudioService.getLanguageLocaleCode(AppLanguage.punjabi), 'pa-IN');
+      expect(NativeAudioService.getLanguageLocaleCode(AppLanguage.hindi), 'hi-IN');
+      expect(NativeAudioService.getLanguageLocaleCode(AppLanguage.english), 'en-US');
+      expect(NativeAudioService.getLanguageLocaleCode(AppLanguage.french), 'fr-FR');
+      expect(NativeAudioService.getLanguageLocaleCode(AppLanguage.tamil), 'ta-IN');
+      expect(NativeAudioService.getLanguageLocaleCode(AppLanguage.telugu), 'te-IN');
+
+      // Test speech invocation
+      final spoken = await NativeAudioService.speak(
+        text: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਜੀ',
+        language: AppLanguage.punjabi,
+      );
+      expect(spoken, isTrue);
+      expect(NativeAudioService.lastSpokenText, 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਜੀ');
+      expect(NativeAudioService.lastSpokenLocale, 'pa-IN');
+
+      final stopped = await NativeAudioService.stop();
+      expect(stopped, isTrue);
+    });
+
+    testWidgets('CameraOverlayScreen: Renders "⚡ Try Sequential Pipeline" button directly below assistant card', (tester) async {
+      final controller = AppStateController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CameraOverlayScreen(controller: controller),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('⚡ Try Sequential Pipeline'), findsOneWidget);
+      expect(find.text('Buddy'), findsOneWidget);
+      expect(find.text('BoliXR Companion'), findsOneWidget);
+
+      controller.dispose();
+    });
+
+    testWidgets('CameraOverlayScreen: Tapping Play button triggers Assistant Audio playback', (tester) async {
+      final controller = AppStateController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CameraOverlayScreen(controller: controller),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Play button on assistant card
+      final playButtonFinder = find.byIcon(Icons.play_arrow_rounded);
+      expect(playButtonFinder, findsWidgets);
+
+      // Tap play button
+      await tester.tap(playButtonFinder.first);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // Audio was routed to synthesis and NativeAudioService
+      expect(NativeAudioService.lastSpokenText, controller.assistantMessage);
+
+      // Wait for synthesis timer to complete cleanly
+      await tester.pump(const Duration(milliseconds: 1200));
+      controller.dispose();
+    });
+
+    testWidgets('ModelInfoDialog: Renders Model Weight Manager, 2.46 GB question explanation, USB iTunes file sharing, and Try It button', (tester) async {
+      final controller = AppStateController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ModelInfoDialog(controller: controller),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // 1. Dialog Title
+      expect(find.text('Model Weight Manager'), findsOneWidget);
+
+      // 2. Interactive Try Sequential Pipeline button
+      expect(find.text('⚡ Try Sequential Pipeline'), findsOneWidget);
+
+      // 3. Zero-Download Clarification Banner (2.46 GB question)
+      expect(find.text('Zero Download Required To Test'), findsOneWidget);
+
+      // 4. Dual Operational Modes
+      expect(find.text('Mode A: On-Device Semantic Engine'), findsOneWidget);
+      expect(find.text('Mode B: Full Raw Weights Mode'), findsOneWidget);
+      expect(find.text('ACTIVE'), findsOneWidget);
+
+      // 5. Model Weights Inventory
+      expect(find.text('Gemma 4 E2B Instruct'), findsOneWidget);
+      expect(find.text('2.46 GB'), findsOneWidget);
+      expect(find.text('IndicConformer ASR'), findsOneWidget);
+      expect(find.text('188 MB'), findsOneWidget);
+      expect(find.text('Sooktam-2 / Kokoro TTS'), findsOneWidget);
+      expect(find.text('281 MB'), findsOneWidget);
+
+      // 6. USB iTunes/Finder 30-Second Transfer Guide
+      expect(find.text('USB iTunes / Finder Sideloading (30s Transfer)'), findsOneWidget);
+
+      controller.dispose();
+    });
+
+    testWidgets('ModelInfoDialog: Tapping "⚡ Try Sequential Pipeline" triggers sequential pipeline', (tester) async {
+      final controller = AppStateController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ModelInfoDialog(controller: controller),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Tap Try Sequential Pipeline button
+      await tester.tap(find.text('⚡ Try Sequential Pipeline'));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Pipeline started
+      expect(controller.lifecycleManager.isRunning, isTrue);
+
+      // Advance through pipeline execution
+      await tester.pump(const Duration(milliseconds: 4000));
+      expect(controller.lifecycleManager.stage, ModelStage.completed);
+
+      controller.dispose();
+    });
+
+    testWidgets('CameraOverlayScreen: Launches with autoPlayWelcomeGreeting and triggers welcome audio speech', (tester) async {
+      final controller = AppStateController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CameraOverlayScreen(
+            controller: controller,
+            autoPlayWelcomeGreeting: true,
+          ),
+        ),
+      );
+      // Wait for postFrameCallback and synthesis completion
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 1200));
+
+      expect(NativeAudioService.lastSpokenText, controller.assistantMessage);
+      expect(NativeAudioService.lastSpokenLocale, NativeAudioService.getLanguageLocaleCode(controller.outputLanguage));
+
+      controller.dispose();
+    });
+
+    testWidgets('VocabFoundSheet: "Ask a follow up" checks microphone permission and switches to audio mode', (tester) async {
+      final controller = AppStateController();
+      final entity = controller.activeEntity ?? controller.detectedEntities.first;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VocabFoundSheet(
+              controller: controller,
+              entity: entity,
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final followUpFinder = find.text('Ask a follow up');
+      expect(followUpFinder, findsOneWidget);
+
+      await tester.tap(followUpFinder);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(controller.activeInputMode, InputMode.audio);
+
+      controller.dispose();
+    });
+
+    test('NativeAudioService: Empty text rejection and bounds handling', () async {
+      final emptyResult = await NativeAudioService.speak(
+        text: '   ',
+        language: AppLanguage.english,
+      );
+      expect(emptyResult, isFalse);
+
+      final validResult = await NativeAudioService.speak(
+        text: 'Hello world',
+        language: AppLanguage.english,
+        rate: 2.5,
+        pitch: 0.2,
+      );
+      expect(validResult, isTrue);
+      expect(NativeAudioService.lastSpokenText, 'Hello world');
     });
   });
 }

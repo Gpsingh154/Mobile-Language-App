@@ -8,6 +8,7 @@ import '../models/vision_frame_payload.dart';
 import '../models/conversation_lab_model.dart';
 import 'dynamic_query_engine.dart';
 import 'grammar_lab_service.dart';
+import 'native_audio_service.dart';
 
 /// Current lifecycle phase of the sequential AI engine
 enum ModelStage {
@@ -215,6 +216,9 @@ class ModelLifecycleManager extends ChangeNotifier {
   ConversationLabTurn? get lastConversationLabTurn => _lastConversationLabTurn;
   RecognizedEntity? get lastGeneratedEntity => _lastGeneratedEntity;
 
+  bool _isSequentialPipelineRunning = false;
+  bool get isSequentialPipelineRunning => _isSequentialPipelineRunning;
+
   bool get isRunning => _stage != ModelStage.idle && _stage != ModelStage.completed && _stage != ModelStage.error;
 
   Stream<PipelineTelemetry> get telemetryStream {
@@ -284,6 +288,7 @@ class ModelLifecycleManager extends ChangeNotifier {
     _gemmaResponse = null;
     _synthesizedAudioStatus = null;
     _activeModelPath = null;
+    _isSequentialPipelineRunning = true;
 
     final delegateLabel = activeHardwareDelegate;
 
@@ -397,6 +402,16 @@ class ModelLifecycleManager extends ChangeNotifier {
         newProgress: 0.95,
       );
       _synthesizedAudioStatus = 'Playing synthesized waveform in ${outputLanguage.nativeName}...';
+
+      // Speak completion announcement aloud over native audio (iOS AVSpeech / Android TTS / Windows SAPI)
+      final completionAnnouncement = _gemmaResponse ?? 'Sequential pipeline finished successfully.';
+      await NativeAudioService.speak(
+        text: completionAnnouncement,
+        language: outputLanguage,
+        rate: ttsSpeechRate,
+        pitch: ttsPitch,
+      );
+
       await Future.delayed(const Duration(milliseconds: 600));
 
       _notify(
@@ -424,6 +439,8 @@ class ModelLifecycleManager extends ChangeNotifier {
       _activeModelPath = null;
       _currentEstimatedRamMb = baselineIdleRamMb;
       _notify('Pipeline error: $e', newStage: ModelStage.error);
+    } finally {
+      _isSequentialPipelineRunning = false;
     }
   }
 
@@ -454,10 +471,13 @@ class ModelLifecycleManager extends ChangeNotifier {
         newProgress: 0.8,
       );
 
-      // Trigger audible sound on Windows laptop speakers
-      if (!kIsWeb && Platform.isWindows) {
-        _playWindowsSpeech(text);
-      }
+      // Trigger audible sound on physical speakers (iOS AVSpeech with .playback category, Android TTS, or Windows SAPI)
+      await NativeAudioService.speak(
+        text: text,
+        language: language,
+        rate: ttsSpeechRate,
+        pitch: ttsPitch,
+      );
 
       await Future.delayed(const Duration(milliseconds: 600));
 
@@ -709,25 +729,6 @@ class ModelLifecycleManager extends ChangeNotifier {
       final learning = entityContext.getLearning(inputLanguage, outputLanguage);
       return '${learning.sourceTerm} ➔ ${learning.targetTerm} (${learning.targetPhonetic}). ਸ਼ਬਦ ਸ਼੍ਰੇਣੀ: ${learning.partOfSpeech}. ਉਦਾਹਰਣ: "${learning.targetExampleSentence}"';
     }
-  }
-
-  static void _playWindowsSpeech(String text) {
-    try {
-      final sanitized = text
-          .replaceAll('`', '')
-          .replaceAll('"', ' ')
-          .replaceAll("'", ' ')
-          .replaceAll('\n', ' ')
-          .trim();
-      if (sanitized.isEmpty) return;
-
-      Process.start('powershell', [
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        'Add-Type -AssemblyName System.Speech; \$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; \$synth.Speak("$sanitized");',
-      ], mode: ProcessStartMode.detached);
-    } catch (_) {}
   }
 
   @override

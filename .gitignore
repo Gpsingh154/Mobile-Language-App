@@ -59,3 +59,8 @@ app.*.map.json
 *.tflite
 *.pt
 
+# Build Artifacts & Binaries
+*.ipa
+*.aab
+*.apk
+

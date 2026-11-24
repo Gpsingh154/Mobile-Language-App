@@ -121,6 +121,11 @@ class AppStateController extends ChangeNotifier {
     );
   }
 
+  /// Speaks the initial welcome greeting aloud on app launch
+  Future<void> playWelcomeGreeting() async {
+    await playAssistantAudio(_assistantMessage);
+  }
+
   // --- Supernova-Style Conversation Lab History ---
   final List<ConversationLabTurn> _conversationLabHistory = [];
   List<ConversationLabTurn> get conversationLabHistory => List.unmodifiable(_conversationLabHistory);

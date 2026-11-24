@@ -1,0 +1,77 @@
+name: Android Release Build (Google Play Store AAB & Sideload APK)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-android:
+    name: Build Production Android AAB & APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Java Development Kit (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Flutter Stable Environment
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Environment & Tools
+        run: flutter doctor -v
+
+      - name: Install Project Dependencies
+        run: flutter pub get
+
+      - name: Ensure Model Asset Placeholders Exist
+        run: |
+          mkdir -p assets/models/gemma assets/models/asr assets/models/tts
+          [ -f assets/models/gemma/gemma-4-E2B-it.litertlm ] || touch assets/models/gemma/gemma-4-E2B-it.litertlm
+          [ -f assets/models/asr/indic_conformer_int8.onnx ] || touch assets/models/asr/indic_conformer_int8.onnx
+          [ -f assets/models/tts/kokoro_int8_fp16.litertlm ] || touch assets/models/tts/kokoro_int8_fp16.litertlm
+
+      - name: Run Flutter Automated Test Suite
+        run: flutter test
+
+      - name: Build Google Play Store Android App Bundle (.aab)
+        run: flutter build appbundle --release --no-tree-shake-icons
+
+      - name: Build Sideload Universal Android APK (.apk)
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Upload Google Play Store Bundle (.aab)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BoliXR-Companion-PlayStore-AAB
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 14
+
+      - name: Upload Sideload APK (.apk)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BoliXR-Companion-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+
+      # =========================================================================
+      # Google Play Store Release Notes:
+      # =========================================================================
+      # 1. Google Play Console:
+      #    - Upload 'app-release.aab' directly to Production or Internal Testing Track.
+      # 2. Hardware Testing / Sideload:
+      #    - Install 'app-release.apk' onto any Android phone or tablet via ADB:
+      #      adb install -r app-release.apk

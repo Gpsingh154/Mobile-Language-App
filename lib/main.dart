@@ -48,7 +48,10 @@ class _MobileLanguageAppState extends State<MobileLanguageApp> {
       title: 'Mobile Language App',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: CameraOverlayScreen(controller: _controller),
+      home: CameraOverlayScreen(
+        controller: _controller,
+        autoPlayWelcomeGreeting: true,
+      ),
     );
   }
 }

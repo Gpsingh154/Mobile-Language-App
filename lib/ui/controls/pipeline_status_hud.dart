@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../models/app_mode.dart';
 import '../../services/model_lifecycle_manager.dart';
 import '../../state/app_state_controller.dart';
 import '../../utils/theme.dart';

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../models/app_language.dart';
-import '../../models/app_mode.dart';
 import '../../state/app_state_controller.dart';
 import 'language_dropdown_widget.dart';
 

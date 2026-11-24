@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Mobile Language App</string>
+	<string>BoliXR Companion</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -70,5 +70,9 @@
 	<string>BoliXR Companion uses the camera for on-device visual language recognition and vocabulary scanning.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>BoliXR Companion uses the microphone for speech-to-text recognition and language pronunciation.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

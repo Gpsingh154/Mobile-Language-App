@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/app_language.dart';
 import '../../models/vision_frame_payload.dart';
 import '../../services/model_lifecycle_manager.dart';
+import '../../services/permission_service.dart';
 import '../../state/app_state_controller.dart';
 import '../conversation_lab/conversation_lab_screen.dart';
 import '../vocabulary/vocabulary_screen.dart';
@@ -18,13 +19,42 @@ import 'vocab_found_sheet.dart';
 /// - 3-way input toggle pill `Image` | `Audio` | `Text`
 /// - Bottom navigation bar: `Camera` | `Vocabulary` | `Study`
 /// - Features an On-Demand Event-Driven Vision Router (continuous AI camera stream decoupled).
-class CameraOverlayScreen extends StatelessWidget {
+class CameraOverlayScreen extends StatefulWidget {
   const CameraOverlayScreen({
     super.key,
     required this.controller,
+    this.autoPlayWelcomeGreeting = false,
   });
 
   final AppStateController controller;
+  final bool autoPlayWelcomeGreeting;
+
+  @override
+  State<CameraOverlayScreen> createState() => _CameraOverlayScreenState();
+}
+
+class _CameraOverlayScreenState extends State<CameraOverlayScreen> {
+  AppStateController get controller => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.autoPlayWelcomeGreeting) {
+        // 1. Prime camera permission when landing on camera viewfinder
+        PermissionService.checkPermission(PermissionType.camera).then((status) {
+          if (!mounted) return;
+          if (status == PermissionStatus.notDetermined) {
+            PermissionService.requestPermission(PermissionType.camera);
+          }
+        });
+
+        // 2. Audible welcome greeting on app launch
+        widget.controller.playWelcomeGreeting();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +98,7 @@ class CameraOverlayScreen extends StatelessWidget {
                     // Top App Header
                     _buildTopHeader(context),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 4),
 
                     // Floating Assistant Message Card
                     Padding(
@@ -76,31 +106,35 @@ class CameraOverlayScreen extends StatelessWidget {
                       child: _buildAssistantCard(context),
                     ),
 
-                    // Translation FAB (文A) on the right below card
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 18, top: 12),
-                        child: _buildTranslationFab(context),
-                      ),
+                    // Directly below Assistant Card: Prominent Interactive "⚡ Try Sequential Pipeline" Pill & Translation FAB
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                      child: _buildPipelineTriggerRow(context),
                     ),
+
+                    // Live HUD Transitions directly visible under the trigger button
+                    if (controller.lifecycleManager.isSequentialPipelineRunning)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                        child: _buildLivePipelineHud(context),
+                      ),
 
                     const Spacer(),
 
                     // Central Interaction Control (Mic FAB / Text Input / Gallery Launcher)
                     _buildCenterInputControl(context),
 
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 8),
 
                     // Subtitle Prompt
                     _buildSubtitlePrompt(),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 10),
 
                     // 3-Way Input Toggle Pill: Image | Audio | Text
                     _buildInputTogglePill(),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                   ],
                 ),
               ),
@@ -119,7 +153,7 @@ class CameraOverlayScreen extends StatelessWidget {
                 ),
             ],
           ),
-          bottomNavigationBar: _buildBottomNavigationBar(),
+          bottomNavigationBar: _buildBottomNavigationBar(context),
         );
       },
     );
@@ -255,7 +289,7 @@ class CameraOverlayScreen extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xEE161F2C),
         borderRadius: BorderRadius.circular(20),
@@ -342,7 +376,7 @@ class CameraOverlayScreen extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // Top Status Row: Green Dot PocketTTS / Sooktam-2 & Green Dot Parakeet / IndicConformer ASR
           Row(
@@ -352,7 +386,7 @@ class CameraOverlayScreen extends StatelessWidget {
               _buildEngineStatusDot('Parakeet / IndicConformer ASR'),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // Message Text + Play Button
           Row(
@@ -435,7 +469,152 @@ class CameraOverlayScreen extends StatelessWidget {
   }
 
   // =========================================================================
-  // 3. FLOATING TRANSLATION FAB (`文A`)
+  // 3. PIPELINE TRIGGER ROW & LIVE HUD TRANSITIONS
+  // =========================================================================
+
+  Widget _buildPipelineTriggerRow(BuildContext context) {
+    final isRunning = controller.lifecycleManager.isSequentialPipelineRunning;
+    final telemetry = controller.lifecycleManager.currentTelemetry;
+
+    return Row(
+      children: [
+        // Prominent Interactive Floating Pill Button: ⚡ Try Sequential Pipeline
+        Expanded(
+          child: GestureDetector(
+            onTap: isRunning
+                ? null
+                : () {
+                    controller.triggerLiveInferencePipeline();
+                  },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF10B981), Color(0xFF059669)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF10B981).withOpacity(0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+                border: Border.all(color: Colors.white30, width: 1.0),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isRunning) ...[
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Step ${telemetry.stage.index}/11: ${telemetry.currentEstimatedRamMb} MB',
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.3,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ] else ...[
+                    const Icon(Icons.bolt_rounded, size: 20, color: Colors.black),
+                    const SizedBox(width: 6),
+                    const Text(
+                      '⚡ Try Sequential Pipeline',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        _buildTranslationFab(context),
+      ],
+    );
+  }
+
+  Widget _buildLivePipelineHud(BuildContext context) {
+    final telemetry = controller.lifecycleManager.currentTelemetry;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xEE161F2C),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4), width: 1.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  telemetry.statusMessage,
+                  style: const TextStyle(
+                    color: Color(0xFF34D399),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${telemetry.currentEstimatedRamMb} / ${telemetry.memoryCapMb} MB',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10.5,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: telemetry.progress,
+              minHeight: 4,
+              backgroundColor: Colors.white12,
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // 4. FLOATING TRANSLATION FAB (`文A`)
   // =========================================================================
 
   Widget _buildTranslationFab(BuildContext context) {
@@ -526,7 +705,7 @@ class CameraOverlayScreen extends StatelessWidget {
   Widget _buildCenterInputControl(BuildContext context) {
     switch (controller.activeInputMode) {
       case InputMode.audio:
-        return _buildMicFab();
+        return _buildMicFab(context);
       case InputMode.text:
         return _buildTextInputField();
       case InputMode.image:
@@ -535,7 +714,7 @@ class CameraOverlayScreen extends StatelessWidget {
   }
 
   /// Feature 2: Dedicated Microphone Floating Action Button with distinct white ring border
-  Widget _buildMicFab() {
+  Widget _buildMicFab(BuildContext context) {
     final audio = controller.audioService;
     final isRecording = audio.isRecording;
     final isTranscribing = audio.isTranscribing;
@@ -546,12 +725,18 @@ class CameraOverlayScreen extends StatelessWidget {
         if (isRecording) {
           await controller.stopAudioRecordingAndProcess();
         } else {
-          await controller.startAudioRecording();
+          final granted = await PermissionService.ensureMicrophonePermission(context);
+          if (granted) {
+            await controller.startAudioRecording();
+          }
         }
       },
       onLongPressStart: (_) async {
         if (isTranscribing || isRecording) return;
-        await controller.startAudioRecording();
+        final granted = await PermissionService.ensureMicrophonePermission(context);
+        if (granted) {
+          await controller.startAudioRecording();
+        }
       },
       onLongPressEnd: (_) async {
         if (isRecording) {
@@ -724,7 +909,14 @@ class CameraOverlayScreen extends StatelessWidget {
           _buildToggleSegment(
             title: 'Audio',
             isActive: activeMode == InputMode.audio,
-            onTap: () => controller.setInputMode(InputMode.audio),
+            onTap: () {
+              controller.setInputMode(InputMode.audio);
+              PermissionService.checkPermission(PermissionType.microphone).then((status) {
+                if (status == PermissionStatus.notDetermined) {
+                  PermissionService.requestPermission(PermissionType.microphone);
+                }
+              });
+            },
           ),
           _buildToggleSegment(
             title: 'Text',
@@ -766,7 +958,7 @@ class CameraOverlayScreen extends StatelessWidget {
   // 6. BOTTOM NAVIGATION BAR (`Camera` | `Vocabulary` | `Study`)
   // =========================================================================
 
-  Widget _buildBottomNavigationBar() {
+  Widget _buildBottomNavigationBar(BuildContext context) {
     final activeTab = controller.activeTabIndex;
 
     return Container(
@@ -779,18 +971,21 @@ class CameraOverlayScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildNavItem(
+            context: context,
             index: 0,
             icon: Icons.camera_alt_rounded,
             label: 'Camera',
             isActive: activeTab == 0,
           ),
           _buildNavItem(
+            context: context,
             index: 1,
             icon: Icons.menu_book_rounded,
             label: 'Vocabulary',
             isActive: activeTab == 1,
           ),
           _buildNavItem(
+            context: context,
             index: 2,
             icon: Icons.school_rounded,
             label: 'Study',
@@ -802,13 +997,19 @@ class CameraOverlayScreen extends StatelessWidget {
   }
 
   Widget _buildNavItem({
+    required BuildContext context,
     required int index,
     required IconData icon,
     required String label,
     required bool isActive,
   }) {
     return InkWell(
-      onTap: () => controller.setActiveTab(index),
+      onTap: () {
+        controller.setActiveTab(index);
+        if (index == 0) {
+          PermissionService.ensureCameraPermission(context);
+        }
+      },
       borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),

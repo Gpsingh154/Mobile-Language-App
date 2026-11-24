@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/recognized_entity.dart';
+import '../../services/permission_service.dart';
 import '../../state/app_state_controller.dart';
 
 /// Modal bottom sheet displaying dynamic vocabulary extracted from the
@@ -304,10 +305,13 @@ class _VocabFoundSheetState extends State<VocabFoundSheet> {
                       'Ask a follow up',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
-                    onPressed: () {
-                      widget.onClose();
-                      controller.setInputMode(InputMode.audio);
-                      controller.startAudioRecording();
+                    onPressed: () async {
+                      final granted = await PermissionService.ensureMicrophonePermission(context);
+                      if (granted) {
+                        widget.onClose();
+                        controller.setInputMode(InputMode.audio);
+                        await controller.startAudioRecording();
+                      }
                     },
                   ),
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/app_language.dart';
 import '../../models/conversation_lab_model.dart';
+import '../../services/permission_service.dart';
 import '../../state/app_state_controller.dart';
 import 'grammar_check_card.dart';
 import 'natural_fluency_card.dart';
@@ -70,7 +71,10 @@ class _ConversationLabScreenState extends State<ConversationLabScreen>
     if (audio.isRecording) {
       await widget.controller.stopAudioRecordingAndProcess();
     } else {
-      await widget.controller.startAudioRecording();
+      final granted = await PermissionService.ensureMicrophonePermission(context);
+      if (granted) {
+        await widget.controller.startAudioRecording();
+      }
     }
   }
 
@@ -366,7 +370,10 @@ class _ConversationLabScreenState extends State<ConversationLabScreen>
             onLongPressStart: (_) async {
               final audio = widget.controller.audioService;
               if (!audio.isRecording && !audio.isTranscribing) {
-                await widget.controller.startAudioRecording();
+                final granted = await PermissionService.ensureMicrophonePermission(context);
+                if (granted) {
+                  await widget.controller.startAudioRecording();
+                }
               }
             },
             onLongPressEnd: (_) async {
