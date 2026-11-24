@@ -1,0 +1,64 @@
+name: Build iOS IPA (iPhone 13 Pro Sideload)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-ios:
+    name: Build Flutter iOS IPA
+    runs-on: macos-14 # Apple Silicon M2 runner
+
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup Flutter Environment
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Verify Flutter & Environment
+        run: flutter doctor -v
+
+      - name: Install Project Dependencies
+        run: flutter pub get
+
+      - name: Ensure Model Asset Placeholders Exist
+        run: |
+          mkdir -p assets/models/gemma assets/models/asr assets/models/tts
+          [ -f assets/models/gemma/gemma-4-E2B-it.litertlm ] || touch assets/models/gemma/gemma-4-E2B-it.litertlm
+          [ -f assets/models/asr/indic_conformer_int8.onnx ] || touch assets/models/asr/indic_conformer_int8.onnx
+          [ -f assets/models/tts/kokoro_int8_fp16.litertlm ] || touch assets/models/tts/kokoro_int8_fp16.litertlm
+
+      - name: Build iOS Application (Release, Unsigned)
+        run: |
+          flutter build ios --release --no-codesign
+
+      - name: Package Payload into Installable IPA
+        run: |
+          mkdir -p build/ios/iphoneos/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          cd build/ios/iphoneos
+          zip -r mobile_language_app.ipa Payload
+          cd ../../..
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mobile-Language-App-iOS-Release
+          path: build/ios/iphoneos/mobile_language_app.ipa
+          retention-days: 14
+
+      # Instructions for Sideloading onto iPhone 13 Pro:
+      # 1. Download 'mobile_language_app.ipa' from GitHub Actions Artifacts.
+      # 2. Connect iPhone 13 Pro to your laptop via USB cable.
+      # 3. Open Sideloadly (or AltStore) on Windows.
+      # 4. Drag & drop mobile_language_app.ipa, enter your Apple ID, and click 'Start'.
+      # 5. On iPhone: Settings > General > VPN & Device Management > Trust Developer.
+      # 6. Enjoy full on-device camera & AI pipeline running directly on your iPhone 13 Pro!

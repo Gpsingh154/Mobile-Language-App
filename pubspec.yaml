@@ -1,0 +1,45 @@
+name: mobile_language_app
+description: "A local-first multilingual language learning and reasoning mobile application powered by on-device Gemma LiteRT-LM, IndicConformer ASR, and Indic Audio Synthesis."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # Directory packages
+    - assets/models/gemma/
+    - assets/models/asr/
+    - assets/models/tts/
+
+    # Explicit Model Assets: Gemma 4 E2B LiteRT-LM Main Brain
+    - assets/models/gemma/gemma-4-E2B-it.litertlm
+    - assets/models/gemma/chat_template.jinja
+    - assets/models/gemma/metadata.json
+
+    # Explicit Model Assets: IndicConformer Multilingual ASR (Sherpa-ONNX INT8)
+    - assets/models/asr/indic_conformer_int8.onnx
+    - assets/models/asr/tokens.txt
+    - assets/models/asr/config.json
+    - assets/models/asr/metadata.json
+
+    # Explicit Model Assets: Indic Audio Synthesis (TTS) & Sooktam-2 Configs
+    - assets/models/tts/kokoro_int8_fp16.litertlm
+    - assets/models/tts/sooktam2_config.json
+    - assets/models/tts/sooktam2_vocab.txt
+    - assets/models/tts/reference.wav
+    - assets/models/tts/metadata.json

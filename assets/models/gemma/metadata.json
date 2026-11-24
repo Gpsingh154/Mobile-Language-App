@@ -1,0 +1,16 @@
+{
+  "name": "Gemma 4 E2B Instruct (LiteRT-LM)",
+  "base_model": "google/gemma-4-E2B-it",
+  "deployed_source": "litert-community/gemma-4-E2B-it-litert-lm",
+  "architecture": "Gemma 4 E2B Instruct",
+  "format": "LiteRT-LM (.litertlm)",
+  "model_file": "gemma-4-E2B-it.litertlm",
+  "chat_template": "chat_template.jinja",
+  "quantization": "Mixed 2-bit / 4-bit / 8-bit QAT",
+  "target_runtime": "litert-lm / flutter_edge_ai",
+  "license": "Apache-2.0",
+  "parameters": "2B effective (mixture of 2b, 4b, 8b weights)",
+  "memory_footprint_mb": 800,
+  "context_length": 4096,
+  "description": "On-device native LLM execution engine for multilingual reasoning, instruction following, and conversational AI."
+}

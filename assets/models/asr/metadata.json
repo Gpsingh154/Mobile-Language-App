@@ -1,0 +1,20 @@
+{
+  "name": "IndicConformer ASR",
+  "base_model": "ai4bharat/indic-conformer-600m-multilingual",
+  "deployed_source": "meetsync/indic-conformer-onnx-sherpa",
+  "architecture": "Conformer CTC / RNNT Hybrid",
+  "format": "ONNX (INT8 Quantized)",
+  "model_file": "indic_conformer_int8.onnx",
+  "vocab_file": "tokens.txt",
+  "config_file": "config.json",
+  "sample_rate_hz": 16000,
+  "channels": 1,
+  "target_runtime": "sherpa-onnx / onnxruntime_flutter",
+  "supported_languages": [
+    "hi", "pa", "en", "bn", "gu", "kn", "ml", "mr", "or", "ta", "te", "ur"
+  ],
+  "fallback_details": {
+    "reason": "Base Hugging Face repo ai4bharat/indic-conformer-600m-multilingual is gated (HTTP 401 Unauthorized without auth token) and contains large unquantized FP32 weights (>2.4GB).",
+    "solution": "INT8 quantized mobile ONNX export deployed for offline, low-latency edge speech recognition on Android/iOS."
+  }
+}

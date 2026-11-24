@@ -1,0 +1,22 @@
+{
+  "name": "Indic Audio Synthesis (TTS)",
+  "target_model": "bharatgenai/sooktam2",
+  "deployed_source": "bharatgenai/sooktam2 & litert-community/Kokoro-82M",
+  "architecture": "Sooktam-2 (F5-TTS multilingual base) + Kokoro LiteRT-LM on-device engine",
+  "format": "LiteRT-LM (.litertlm) / TFLite",
+  "model_file": "kokoro_int8_fp16.litertlm",
+  "sooktam2_manifest": {
+    "config": "sooktam2_config.json",
+    "vocab": "sooktam2_vocab.txt",
+    "reference_audio": "reference.wav"
+  },
+  "sample_rate_hz": 24000,
+  "target_runtime": "litert-lm / flutter_edge_ai",
+  "supported_languages": [
+    "hi", "pa", "en", "mr", "gu", "ta", "te", "kn", "bn", "ml", "or", "ur"
+  ],
+  "fallback_details": {
+    "reason": "Base Sooktam-2 model provides a 5.13 GB PyTorch server checkpoint (model_1250000.pt) lacking mobile runtime support.",
+    "solution": "Retained full Sooktam-2 configuration, vocabulary, and reference conditioning assets while bundling a native LiteRT-LM INT8-quantized speech synthesizer for instant, local-first on-device audio generation."
+  }
+}

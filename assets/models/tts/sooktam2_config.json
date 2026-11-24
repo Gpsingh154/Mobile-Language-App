@@ -1,0 +1,13 @@
+{
+  "model_type": "f5_tts",
+  "model_name": "F5TTS_v1_Base",
+  "ckpt_file": "model_1250000.pt",
+  "vocab_file": "vocab.txt",
+  "ode_method": "euler",
+  "use_ema": true,
+  "auto_map": {
+    "AutoConfig": "hf_auto.F5TTSConfig",
+    "AutoModel": "hf_auto.F5TTSAutoModel",
+    "AutoTokenizer": "hf_auto.F5TTSTokenizer"
+  }
+}
